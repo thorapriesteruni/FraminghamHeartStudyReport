@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 
 st.title("Framingham Heart Study Report :heart:")
-st.write("Report written by Alba Villagrasa Martín, Ketlin Marku and Thora Priester")
+st.write("Report written by Alba Villagrasa Martín (i6369062), Ketlin Marku (i6345996) and Thora Priester (i6346891)")
 st.subheader("Research Question: Can cardiovascular disease (CVD) be predicted using total cholesterol measurements (TOTCHOL) and related lipid biomarkers measured in Period 3 of the Framingham Heart Study?")
 
 
