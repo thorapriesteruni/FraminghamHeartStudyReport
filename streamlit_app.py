@@ -863,12 +863,12 @@ y = cvd_clean_imputed["CVD"]
     decision_tree = tree.DecisionTreeClassifier(random_state=1, class_weight="balanced")
 
     logreg_acc = evaluate_model(logreg, X_train, y_train, kf)
-    tree_acc   = evaluate_model(decision_tree, X_train, y_train, kf)
+    tree_acc = evaluate_model(decision_tree, X_train, y_train, kf)
 
     st.write("Logistic Regression accuracies (CV on train):", logreg_acc)
     st.write("Logistic Regression mean accuracy:", np.mean(logreg_acc))
 
-    st.write("Decision Tree accuracies (CV on train):", tree_acc)
+    st.write("\nDecision Tree accuracies (CV on train):", tree_acc)
     st.write("Decision Tree mean accuracy:", np.mean(tree_acc))
 
 
@@ -914,7 +914,6 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
             train_X = train_X.fillna(medians)
             val_X = val_X.fillna(medians)
 
-            # Scaling (TRAIN ONLY)
             scaler = StandardScaler()
             train_X = scaler.fit_transform(train_X)
             val_X = scaler.transform(val_X)
@@ -949,7 +948,83 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
         st.write(f"{name}: {np.mean(accs):.4f}")
 
 
+    togglestratified = st.toggle("Show Code for StratifiedKFold")
+    if togglestratified:
+        st.code('''with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
+    import streamlit as st
+    import numpy as np
+    from sklearn.model_selection import StratifiedKFold
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import accuracy_score
+    from sklearn import tree
+    from sklearn.neighbors import KNeighborsClassifier
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.naive_bayes import GaussianNB
 
+    featuresX = ['SEX','AGE','TOTCHOL','HDLC','LDLC',
+                 "BMI", "PREVCHD", "PREVMI",
+                 'NONHDL','LDL_to_HDL','TOTCHOL_to_HDL','AGE_65plus']
+
+    X = cvd_clean_imputed[featuresX]  # your dataset
+    y = cvd_clean_imputed["CVD"]
+
+    # Train/test split 
+    from sklearn.model_selection import train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=1)
+
+    # Stratified K-Fold CV
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
+
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.metrics import accuracy_score
+
+    def evaluate_model(model, X, y, skf):
+        accuracies = []
+
+        for train_idx, val_idx in skf.split(X, y):
+            train_X, val_X = X.iloc[train_idx].copy(), X.iloc[val_idx].copy()
+            train_y, val_y = y.iloc[train_idx], y.iloc[val_idx]
+
+            # Median imputation (TRAIN ONLY)
+            medians = train_X.median()
+            train_X = train_X.fillna(medians)
+            val_X = val_X.fillna(medians)
+
+            scaler = StandardScaler()
+            train_X = scaler.fit_transform(train_X)
+            val_X = scaler.transform(val_X)
+
+            model.fit(train_X, train_y)
+            preds = model.predict(val_X)
+
+            accuracies.append(accuracy_score(val_y, preds))
+
+        return accuracies
+    
+
+    models = {
+        "Logistic Regression": LogisticRegression(max_iter=1000, class_weight="balanced"),
+        "Decision Tree": tree.DecisionTreeClassifier(random_state=1, class_weight="balanced"),
+        "KNN (k=5)": KNeighborsClassifier(n_neighbors=5),
+        "Random Forest": RandomForestClassifier(
+            n_estimators=100, random_state=1, class_weight="balanced"
+        ),
+        "Naive Bayes": GaussianNB()
+    }
+    results = {}
+
+    for name, model in models.items():
+        accs = evaluate_model(model, X_train, y_train, skf)
+        results[name] = accs
+        st.write(f"\n{name} accuracies per fold: {accs}")
+        st.write(f"{name} mean accuracy: {np.mean(accs):.4f}")
+
+    st.write("**Model Comparison:**")
+    for name, accs in results.items():
+        st.write(f"{name}: {np.mean(accs):.4f}")
+''')
 
 
 
@@ -973,6 +1048,28 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
     ax.set_ylabel("Accuracy")
     st.pyplot(fig13)
 
+    togglevisuals=st.toggle("Show Code for Model Comparison Visuals")
+    if togglevisuals:
+        st.code('''# Model Comparison Visuals
+    
+    model_names = list(results.keys())
+    mean_acc = [np.mean(results[m]) for m in model_names]
+ 
+    # BAR PLOT
+    fig12, ax = plt.subplots(figsize=(10,4))
+    ax.bar(model_names, mean_acc)
+    ax.set_ylabel("Mean Accuracy")
+    ax.set_title("Model Comparison: Mean Accuracy Across 5 Folds")
+    st.pyplot(fig12)
+
+
+    # BOXPLOT 
+    fig13, ax = plt.subplots(figsize=(10,5))
+    ax.boxplot([results[m] for m in model_names],tick_labels=model_names)
+    ax.set_title("Cross-Validation Accuracy Distribution")
+    ax.set_ylabel("Accuracy")
+    st.pyplot(fig13)''')
+        
     from sklearn.preprocessing import StandardScaler
     from sklearn.ensemble import RandomForestClassifier
     import pandas as pd
@@ -1062,13 +1159,48 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
         display_labels=["No CVD", "CVD"]
     )
 
+    ax.set_title("Normalized Confusion Matrix – Random Forest (Test Set)")
+    st.pyplot(fig)
+
+    toggleconfmatrixes = st.toggle("Show code for confusion matrix")
+    if toggleconfmatrixes:
+        st.code('''from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+    import matplotlib.pyplot as plt
+
+    #using the Random Forest model
+    y_pred = final_model.predict(X_test_scaled)
+
+    # Confusion matrix
+    cm = confusion_matrix(y_test, y_pred)
+
+    disp = ConfusionMatrixDisplay(
+        confusion_matrix=cm,
+        display_labels=["No CVD", "CVD"]
+    )
+
     fig, ax = plt.subplots(figsize=(5, 4))
     disp.plot(ax=ax, cmap="Blues")
     ax.set_title("Confusion Matrix – Random Forest (Test Set)")
     st.pyplot(fig)
 
+    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+    import matplotlib.pyplot as plt
+
+    y_pred = final_model.predict(X_test_scaled)
+
+    cm = confusion_matrix(
+        y_test,
+        y_pred,
+        normalize="true"
+    )
+
+    disp = ConfusionMatrixDisplay(
+        confusion_matrix=cm,
+        display_labels=["No CVD", "CVD"]
+    )
+
     ax.set_title("Normalized Confusion Matrix – Random Forest (Test Set)")
-    st.pyplot(fig)
+    st.pyplot(fig)''')
 
     st.write("The confusion matrix created with random forest modelling used on the test set, gives valuable insight into how the model detects CVD. As seen by the high number of true negatives, the model is doing a good job at identifying people without CVD. This can be accounted for the inbalanced data set, where due to the class imbalance, the model does a better job at identifying those without CVD. Thus the model struggles to identify those with CVD, as seen by the low true positive values (TP=41) and the relatively high false negatives (FN=109). The low true positive number suggests the model does not often correctly predict CVD, and often predicts that the person has no CVD, but in reality the person has CVD. Overall, the accuracy looks relatively high, however the very poor recall value accounted for the large amount of false negatives, this means that patient with CVD are being missed. This is potentially life threatening and the risk of this should be minimised. In general, the model is very conservative in making the prediction that someone has CVD.")
 
@@ -1265,8 +1397,7 @@ Random Forest models achieved the highest overall accuracy (up to approximately 
 
 Naive Bayes achieved competitive accuracy and moderate recall, while KNN showed intermediate performance across metrics. Decision Trees exhibited lower stability and generalisation performance compared to ensemble-based methods.
 
-Overall, model selection depends on the clinical objective. If the goal is to maximise detection of CVD cases, the weighted Logistic Regression model offers the greatest clinical utility due to its superior sensitivity and balanced F1 score. If overall accuracy and robustness are prioritised, Random Forests provide stronger performance but at the cost of missed positive cases. These results highlight the inherent trade-offs in clinical prediction tasks and the limitations imposed by the available lipid and demographic features.''')
-
+Although Random Forest achieved the highest overall accuracy and was selected as the primary model for final test-set evaluation, Logistic Regression demonstrated superior recall and F1 score. This highlights a clinically relevant trade-off between sensitivity and overall accuracy rather than a single universally optimal model.''')
 
 with st.expander("Bonus"):
     st.subheader("Bonus")
