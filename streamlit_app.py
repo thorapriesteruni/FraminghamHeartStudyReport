@@ -4,7 +4,8 @@ import pandas as pd
 
 st.title("Framingham Heart Study Report :heart:")
 st.write("Report written by Alba Villagrasa Martín, Ketlin Marku and Thora Priester")
-st.subheader("Research Question: How are total cholesterol levels associated to cardiovascular disease risk?")
+st.subheader("Research Question: Can cardiovascular disease (CVD) be predicted using total cholesterol measurements (TOTCHOL) and related lipid biomarkers measured in Period 3 of the Framingham Heart Study?")
+
 
 with st.expander("Introduction"):
     st.subheader("Background Information of the Framingham Heart Study")
@@ -25,7 +26,8 @@ One of the key biomarkers used to assess CVD risk is total cholesterol (TOTCHOL)
     st.write("Findings from Phase 1: During the initial stages of our project, we explored research questions related to hypertension. However, we later discovered that the threshold we had could not be applied to everyone, which led to inconsistent classifications when comparing blood pressure measurements across participants. We also focused on assessing how blood pressure medications influenced hypertension status, but this approach also introduced uncertainty because we could not determine whether observed changes were caused by medication use or by lifestyle factors. To avoid these methodological challenges and ensure a clearer analytical direction, we refined our study to investigate a more reliable biomarker. Therefore, our final research question focuses on how total cholesterol levels (TOTCHOL) in Period 3 are associated with cardiovascular disease (CVD) risk. This allows us to work with a well-defined biomarker and avoids the confounding issues present in our earlier ideas.")
 
     st.subheader("Research Question")
-    st.write("Research Question: How are total cholesterol levels associated to cardiovascular disease risk?")
+    st.write("Research Question: Can cardiovascular disease (CVD) be predicted using total cholesterol measurements (TOTCHOL) and related lipid biomarkers measured in Period 3 of the Framingham Heart Study?")
+    st.write("Outcome Variable: Cardiovascular disease (CVD) is used as the binary target variable, where 1 indicates the presence of cardiovascular disease and 0 indicates absence")
 
 # Data Preparation
 with st.expander("Data Preparation"):
@@ -93,7 +95,16 @@ with st.expander("Explore and Clean the Data"):
     st.write("3. Outliers")
     #Missing values in cleaned subset
     st.subheader("1. Missing Data")
-    st.write("As seen in the table below, there are missing values for TOTCHOL, HDLC, and LDLC, however these values will need to be imputed to ensure there is no missing data. This will occur later on to show the difference in the visual representation of the data, without imputation.")
+    st.write('''**Missing Data**
+
+Before selecting the final study period and variables, an exploratory analysis was performed on the full dataset to assess the availability of lipid measurements across the three study periods. This analysis revealed substantial missingness for HDLC and LDLC in Period 1 and Period 2, whereas lipid measurements were largely complete in Period 3, with only limited exceptions.
+
+This pattern indicates that comprehensive cholesterol measurements were most consistently available during Period 3, while earlier periods contained incomplete lipid profiling. In contrast, total cholesterol (TOTCHOL) exhibited fewer missing values across periods, suggesting that it was recorded more consistently and possibly measured independently of HDL and LDL values.
+
+Based on these findings, the analysis was restricted to Period 3 observations, as this period contains the most complete and reliable lipid data for predictive modeling. After restricting the dataset to Period 3 and selecting the relevant variables, missing values were reassessed only within the final analytical dataset.
+
+At this stage, missing values were identified and reported but not removed. Imputation will be performed later during the modeling phase to ensure compatibility with machine-learning algorithms and to allow comparison of visualizations before and after imputation. Retaining missing values during exploratory analysis avoids unnecessary data loss and preserves the integrity of the dataset.''')
+
     st.dataframe(cvd_clean.isna().sum())
 
     #Dividing rows into each period 
@@ -103,15 +114,22 @@ with st.expander("Explore and Clean the Data"):
 
     # Missing values period Period
     with st.expander("Missing Data per Period"):
-        st.write('Period 1 Missing Values')
-        st.dataframe(period1.isna().sum())
-        st.write('Period 2 Missing Values')
-        st.dataframe(period2.isna().sum())
-        st.write('Period 3 Missing Values')
-        st.dataframe(period3.isna().sum())
+        missing_table1 = period1[['TOTCHOL', 'LDLC', 'HDLC']].isna().sum()
+        missing_table1.columns = ['Lipid', 'Missing Count']
+        st.write("Missing values for Period 1:")
+        st.table(missing_table1)
 
-        st.write("We are seeing that in period 1 and period 2 there is a huge amount of missing values for HDLC and LDLC (period1=4434, period2=3930. This is interesting as we often calculate TOTCHOL with the HDLC and LDLC values, so it is important to note that in this study it was probably calculated in another way. TOTCHOL had a way smaller amount if missing values, enabling us to still be able to predict CVD from TOTCHOL")
+        missing_table2 = period2[['TOTCHOL', 'LDLC', 'HDLC']].isna().sum()
+        missing_table2.columns = ['Lipid', 'Missing Count']
+        st.write("Missing values for Period 2:")
+        st.table(missing_table2)
 
+        missing_table3 = period3[['TOTCHOL', 'LDLC', 'HDLC']].isna().sum()
+        missing_table3.columns = ['Lipid', 'Missing Count']
+        st.write("Missing values for Period 3:")
+        st.table(missing_table3)
+
+    
     #Erroneous value filtering
     age_min, age_max = 32, 81
     totchol_min, totchol_max = 107, 696
@@ -124,9 +142,11 @@ with st.expander("Explore and Clean the Data"):
         (cvd_clean["TOTCHOL"].between(totchol_min, totchol_max) | cvd_clean["TOTCHOL"].isna()) &
         (cvd_clean["HDLC"].between(hdlc_min, hdlc_max) | cvd_clean["HDLC"].isna()) &
         (cvd_clean["LDLC"].between(ldlc_min, ldlc_max) | cvd_clean["LDLC"].isna()) &
+        (cvd_clean["BMI"].between(bmi_min, bmi_max) | cvd_clean["BMI"].isna()) &
         (cvd_clean["SEX"].isin([1, 2])) &
-        (cvd_clean["CVD"].isin([0, 1]))
-    )
+        (cvd_clean["PREVCHD"].isin([0,1])) &
+        (cvd_clean["PREVMI"].isin([0,1])) &
+        (cvd_clean["CVD"].isin([0, 1])))
 
     rows_before = len(cvd_clean)
     cvd_clean = cvd_clean[valid_rows].copy()
@@ -159,7 +179,10 @@ with st.expander("Explore and Clean the Data"):
         (cvd_clean["TOTCHOL"].between(totchol_min, totchol_max) | cvd_clean["TOTCHOL"].isna()) &
         (cvd_clean["HDLC"].between(hdlc_min, hdlc_max) | cvd_clean["HDLC"].isna()) &
         (cvd_clean["LDLC"].between(ldlc_min, ldlc_max) | cvd_clean["LDLC"].isna()) &
+        (cvd_clean["BMI"].between(bmi_min, bmi_max) | cvd_clean["BMI"].isna()) &
         (cvd_clean["SEX"].isin([1, 2])) &
+        (cvd_clean["PREVCHD"].isin([0,1]) &
+        (cvd_clean["PREVMI"].isin([0,1])) &
         (cvd_clean["CVD"].isin([0, 1]))
     )
 
@@ -207,7 +230,7 @@ with st.expander("Describe and Visualize"):
     with st.expander("Describe"):
         #Descrive and Visualize
         st.subheader("Summary of Cohort")
-        st.dataframe(cvd_clean[["AGE", "SEX","TOTCHOL", "HDLC", "LDLC","CVD"]].describe())
+        st.dataframe(cvd_clean[["AGE", "SEX","TOTCHOL", "HDLC", "LDLC","CVD","BMI","PREVCHD","PREVMI"]].describe())
 
         import matplotlib.pyplot as plt
 
@@ -215,7 +238,7 @@ with st.expander("Describe and Visualize"):
         st.subheader("Descriptive Statistics")
         st.subheader("Summary of Continuous Variables")
         # 1. Descriptive statistics for continuous variables
-        cont_vars = ["AGE", "TOTCHOL", "HDLC", "LDLC"]
+        cont_vars = ["AGE", "TOTCHOL", "HDLC", "LDLC","BMI"]
         cont_summary = cvd_clean[cont_vars].describe()
         st.write("Descriptive statistics for continuous variables:")
         (cont_summary)
@@ -223,7 +246,7 @@ with st.expander("Describe and Visualize"):
         togglecontsummary = st.toggle("Show code for Summary of Continuous Variables")
         if togglecontsummary:
             st.code('''# 1. Descriptive statistics for continuous variables
-        cont_vars = ["AGE", "TOTCHOL", "HDLC", "LDLC"]
+        cont_vars = ["AGE", "TOTCHOL", "HDLC", "LDLC","BMI]
         cont_summary = cvd_clean[cont_vars].describe()
         st.write("Descriptive statistics for continuous variables:")
         (cont_summary)''')
@@ -240,6 +263,11 @@ with st.expander("Describe and Visualize"):
         st.write("CVD outcome distribution (relative):")
         st.write(cvd_clean["CVD"].value_counts(normalize=True))
 
+        st.write("PREVCHD distribution (0 = No CVD at baseline, 1 = Prevalent CVD):")
+        st.write(cvd_clean["PREVCHD"].value_counts())
+        st.write("PREVMI distribution (0 = No MI at baseline, 1 = Prevalent MI):")
+        st.write(cvd_clean["PREVMI"].value_counts())
+
         togglecatsummary = st.toggle("Show code for Summary of Categorical Variables")
         if togglecatsummary:
             st.code('''# 2. Categorical summaries: SEX CVD
@@ -251,11 +279,16 @@ with st.expander("Describe and Visualize"):
         st.write("CVD outcome distribution (0 = No event, 1 = Event):")
         st.write(cvd_clean["CVD"].value_counts())
         st.write("CVD outcome distribution (relative):")
-        st.write(cvd_clean["CVD"].value_counts(normalize=True))''')
+        st.write(cvd_clean["CVD"].value_counts(normalize=True))
+        
+        st.write("PREVCHD distribution (0 = No CVD at baseline, 1 = Prevalent CVD):")
+        st.write(cvd_clean["PREVCHD"].value_counts())
+        st.write("PREVMI distribution (0 = No MI at baseline, 1 = Prevalent MI):")
+        st.write(cvd_clean["PREVMI"].value_counts())''')
             
-        st.write('''The final analytic cohort consisted of 3,206 participants from the Framingham Heart Study who had completed all three examination periods and had complete lipid measurements available in Period 3. This sample included detailed demographic information, cholesterol values, BMI, baseline cardiovascular conditions, and 24-year follow-up data on cardiovascular events. The age distribution of the cohort shows a mean of approximately 60.6 years, ranging from 44 to 81 years. The histogram reveals a slightly right-skewed distribution, with most individuals falling between 50 and 70 years of age, indicating a predominantly middle-aged to elderly population. This age range is clinically relevant, as cardiovascular disease risk increases substantially with age.
+        st.write('''The final analytic cohort consisted of 3,206 participants from the Framingham Heart Study who had completed all three examination periods and had lipid measurements available in Period 3, with some remaining missing values. This sample included detailed demographic information, cholesterol values, BMI, baseline cardiovascular conditions, and long-term follow-up data on cardiovascular events. The age distribution of the cohort shows a mean of approximately 60.6 years, ranging from 44 to 81 years. The histogram reveals a slightly right-skewed distribution, with most individuals falling between 50 and 70 years of age, indicating a predominantly middle-aged to elderly population. This age range is clinically relevant, as cardiovascular disease risk increases substantially with age.
 
-Total cholesterol values showed characteristics consistent with real-world clinical populations. The mean total cholesterol concentration was approximately 236 mg/dL with a standard deviation of 44 mg/dL, and values ranged from 112 to 625 mg/dL. The histogram demonstrates a normal-like central distribution with a modest right tail caused by several extreme but clinically plausible high values. HDL cholesterol displayed a mean of around 49 mg/dL, with some unusually high measurements up to 189 mg/dL. These upper-range values align with known genetic lipid conditions such as hyperalphalipoproteinemia. LDL cholesterol showed a mean of approximately 176 mg/dL and ranged up to 565 mg/dL, which is consistent with severe hypercholesterolemia commonly observed in familial lipid disorders. BMI values averaged around 25.9 kg/m?, close to the clinical overweight threshold. Some extreme BMI values appeared in the dataset but remained within physiologically expected limits for severe obesity. Boxplots for HDL, LDL, and BMI confirm a wide but realistic spread of values without evidence of data-entry artifacts, supporting the decision to retain outliers in subsequent analyses.
+Total cholesterol values showed characteristics consistent with real-world clinical populations. The mean total cholesterol concentration was approximately 236 mg/dL with a standard deviation of 44 mg/dL, and values ranged from 112 to 625 mg/dL. The histogram demonstrates a normal-like central distribution with a modest right tail caused by several extreme but clinically plausible high values. HDL cholesterol displayed a mean of around 49 mg/dL, with some unusually high measurements up to 189 mg/dL. These upper-range values align with known genetic lipid conditions such as hyperalphalipoproteinemia. LDL cholesterol showed a mean of approximately 176 mg/dL and ranged up to 565 mg/dL, which is consistent with severe hypercholesterolemia commonly observed in familial lipid disorders. BMI values averaged around 25.9 kg/m², close to the clinical overweight threshold. Some extreme BMI values appeared in the dataset but remained within physiologically expected limits for severe obesity. Boxplots for HDL, LDL, and BMI confirm a wide but realistic spread of values without evidence of data-entry artifacts, supporting the decision to retain outliers in subsequent analyses.
 
 Categorical variables also reflect patterns typical of long-term cardiovascular cohort studies. The sex distribution consisted of 57.5% females and 42.5% males. The distribution of cardiovascular outcomes showed substantial class imbalance, with 23.3% of participants experiencing a cardiovascular event during follow-up and 76.7% remaining event-free.
 
@@ -263,8 +296,7 @@ Prevalent conditions at baseline included coronary heart disease in 351 individu
 
 The visualisations further support the interpretation of the dataset. The age histogram confirms a well-represented age span typical of cardiovascular research populations. The total cholesterol histogram demonstrates a central distribution with a right-tailed extension driven by high but plausible lipid values. Boxplots reinforce the presence of clinically meaningful heterogeneity, capturing both average and extreme lipid profiles commonly observed in real populations. Finally, CVD prevalence by sex shows that male participants have a substantially higher event rate (approximately 31%) compared to female participants (around 17%), consistent with well-established epidemiological findings that men tend to have higher cardiovascular risk earlier in life.
 
-In addition to static figures, interactive visualisations were implemented to enhance exploratory analysis of the cohort. These interactive elements allow users to dynamically select variables and adjust age ranges using sliders and dropdown menus, enabling flexible inspection of distributions and relationships within the data. This functionality supports deeper exploration of population heterogeneity and facilitates intuitive comparison across subgroups, while maintaining consistency with the descriptive patterns observed in the static visualisations.
-''')
+In addition to static figures, interactive visualisations were implemented to enhance exploratory analysis of the cohort. These interactive elements allow users to dynamically select variables and adjust age ranges using sliders and dropdown menus, enabling flexible inspection of distributions and relationships within the data. This functionality supports deeper exploration of population heterogeneity and facilitates intuitive comparison across subgroups, while maintaining consistency with the descriptive patterns observed in the static visualisations.''')
 
     with st.expander("Visualizations"):
         st.subheader("Visualizations")
@@ -590,7 +622,7 @@ with st.expander("Data Analysis"):
 
     if toggleimputation:
         st.code('''#Imputed Numerical Columns with Median
-    numeric_cols = ["AGE", "TOTCHOL", "HDLC", "LDLC"]
+    numeric_cols = ["AGE", "TOTCHOL", "HDLC", "LDLC", "BMI]
     cvd_clean_imputed[numeric_cols] = cvd_clean_imputed[numeric_cols].fillna(cvd_clean_imputed[numeric_cols].median())
 
     st.write("Missing values in cvd_clean_imputed:")
@@ -642,6 +674,61 @@ with st.expander("Data Analysis"):
 
     st.pyplot(fig11)
 
+    st.subheader("Interactive Age Filtered Histogram using Imputed Data")
+
+    age_min = int(cvd_clean_imputed["AGE"].min())
+    age_max = int(cvd_clean_imputed["AGE"].max())
+
+    age_range = st.slider(
+        "Age range:",
+        min_value=age_min,
+        max_value=age_max,
+        value=(age_min, age_max),
+        key="age_slider_imputed"
+        )
+    variable = st.selectbox(
+        "Variable:",
+        list(options.keys()),
+        key="variable_select_imputed"
+    )
+    col = options[variable]
+
+    filtered = cvd_clean_imputed[
+        (cvd_clean_imputed["AGE"] >= age_range[0]) &
+        (cvd_clean_imputed["AGE"] <= age_range[1])
+    ][col].dropna()
+
+    fig5, ax = plt.subplots(figsize=(6, 4))
+    ax.hist(filtered, bins=20, edgecolor="black")
+    ax.set_title(f"{variable} distribution (Age {age_range[0]}–{age_range[1]})")
+    ax.set_xlabel(variable)
+    ax.set_ylabel("Number of participants")
+
+    st.pyplot(fig5)
+
+    st.subheader("Interactive Scatter Plot using imputed data")
+    x_var = st.selectbox("Select X variable", list(options.keys()), key="scatter_x")
+    y_var = st.selectbox("Select Y variable", list(options.keys()), key="scatter_y")
+
+        
+    x_col = options[x_var]
+    y_col = options[y_var]
+
+    
+    x = cvd_clean[x_col].dropna()
+    y = cvd_clean[y_col].dropna()
+    
+    min_len = min(len(x), len(y))
+    x = x.iloc[:min_len]
+    y = y.iloc[:min_len]
+
+    fig4, ax = plt.subplots(figsize=(8,5))
+    ax.scatter(x, y, color='blue', alpha=0.6)
+    ax.set_xlabel(x_var)
+    ax.set_ylabel(y_var)
+    ax.set_title(f"Scatter Plot: {x_var} vs {y_var}")
+
+    st.pyplot(fig4)
 
     st.header("Feature Engineering")
     st.write('''To enhance the predictive performance of the models and better capture clinically meaningful cardiovascular risk patterns, additional features were engineered from the original variables, Non-HDL cholesterol was calculated as total cholesterol minus HDL cholesterol, representing the total burden of atherogenic lipoproteins rather than LDL cholesterol alone. In addition, the LDL-to-HDL ratio and the total cholesterol-to-HDL ratio were included to reflect the balance between harmful and protective lipid fractions, which is known to be more informative for cardiovascular risk assessment than absolute lipid values. Finally, a binary age indicator (age ≥ 65 years) was created to capture the increased baseline risk associated with older age. These engineered features preserve clinical interpretability while allowing the models to learn more nuanced, non-linear relationships between lipid profiles, age, and cardiovascular disease outcomes.''')
@@ -674,6 +761,29 @@ with st.expander("Data Analysis"):
         st.dataframe(cvd_clean_imputed["AGE_65plus"])
 
     st.dataframe(cvd_clean_imputed[["NONHDL", "LDL_to_HDL", "TOTCHOL_to_HDL", "AGE_65plus"]].head())
+
+    togglefeaturedescription=st.toggle("Show code for feature engineering")
+    if togglefeaturedescription:
+        st.code('''# FEATURE ENGINEERING
+
+# 1. Non-HDL cholesterol: atherogenic cholesterol
+#    (all cholesterol that is NOT HDL)
+chol_imputed["NONHDL"] = chol_imputed["TOTCHOL"] - chol_imputed["HDLC"]
+
+# 2. LDL / HDL ratio
+#    Higher values indicate worse cardiovascular risk.
+chol_imputed["LDL_to_HDL"] = chol_imputed["LDLC"] / chol_imputed["HDLC"]
+
+# 3. Total cholesterol / HDL ratio
+#    A classic clinical risk index.
+chol_imputed["TOTCHOL_to_HDL"] = chol_imputed["TOTCHOL"] / chol_imputed["HDLC"]
+
+# 4. Age 65+ indicator
+#    A binary feature capturing higher-risk age group.
+chol_imputed["AGE_65plus"] = (chol_imputed["AGE"] >= 65).astype(int)
+
+# Inspect the new engineered features
+chol_imputed[["NONHDL", "LDL_to_HDL", "TOTCHOL_to_HDL", "AGE_65plus"]].head()''')
 
 
 
@@ -716,9 +826,9 @@ y = cvd_clean_imputed["CVD"]
 
     st.write("Step 2: Train/test split")
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.5, stratify=y, random_state=1
+        X, y, test_size=0.2, stratify=y, random_state=1
     )
-    st.code('X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, stratify=y, random_state=1)')
+    st.code('X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=1)')
 
     # 5-fold CV on training data only
     kf = KFold(n_splits=5, shuffle=True, random_state=1)
@@ -791,7 +901,7 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
     # Train/test split (50/50)
     from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.5, stratify=y, random_state=1)
+    X, y, test_size=0.2, stratify=y, random_state=1)
 
     # Stratified K-Fold CV
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=1)
