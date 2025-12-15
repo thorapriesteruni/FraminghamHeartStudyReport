@@ -1144,54 +1144,6 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
     from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
     import matplotlib.pyplot as plt
 
-y_pred = final_model.predict(X_test_scaled)
-
-cm = confusion_matrix(
-    y_test,
-    y_pred,
-    normalize="true"
-)
-
-disp = ConfusionMatrixDisplay(
-    confusion_matrix=cm,
-    display_labels=["No CVD", "CVD"]
-)
-
-fig, ax = plt.subplots(figsize=(5, 4))
-disp.plot(
-    ax=ax,
-    cmap="Blues",
-    values_format=".2f"   # <-- FIX
-)
-
-ax.set_title("Normalized Confusion Matrix – Random Forest (Test Set)")
-st.pyplot(fig)
-
-toggleconfmatrixes = st.toggle("Show code for confusion matrix")
-if toggleconfmatrixes:
-    st.code('''from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-    import matplotlib.pyplot as plt
-
-    #using the Random Forest model
-    y_pred = final_model.predict(X_test_scaled)
-
-    # Confusion matrix
-    cm = confusion_matrix(y_test, y_pred)
-
-    disp = ConfusionMatrixDisplay(
-        confusion_matrix=cm,
-        display_labels=["No CVD", "CVD"]
-    )
-
-    fig, ax = plt.subplots(figsize=(5, 4))
-    disp.plot(ax=ax, cmap="Blues")
-    ax.set_title("Confusion Matrix – Random Forest (Test Set)")
-    st.pyplot(fig)
-
-    #normalized
-    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-    import matplotlib.pyplot as plt
-
     y_pred = final_model.predict(X_test_scaled)
 
     cm = confusion_matrix(
@@ -1205,10 +1157,58 @@ if toggleconfmatrixes:
         display_labels=["No CVD", "CVD"]
     )
 
-    ax.set_title("Normalized Confusion Matrix – Random Forest (Test Set)")
-    st.pyplot(fig)''')
+    fig, ax = plt.subplots(figsize=(5, 4))
+    disp.plot(
+        ax=ax,
+        cmap="Blues",
+        values_format=".2f"   # <-- FIX
+    )
 
-    st.write("The confusion matrix created with random forest modelling used on the test set, gives valuable insight into how the model detects CVD. As seen by the high number of true negatives (96%), the model is doing a good job at identifying people without CVD. This can be accounted for the inbalanced data set, where due to the class imbalance, the model does a better job at identifying those without CVD. Thus the model struggles to identify those with CVD, as seen by the low true positive values (TP=41) and the relatively high false negatives (FN=109). The low true positive number suggests the model does not often correctly predict CVD, and often predicts that the person has no CVD, but in reality the person has CVD. Overall, the accuracy looks relatively high, however the very poor recall value accounted for the large amount of false negatives, this means that patient with CVD are being missed. This is potentially life threatening and the risk of this should be minimised. In general, the model is very conservative in making the prediction that someone has CVD.")
+    ax.set_title("Normalized Confusion Matrix – Random Forest (Test Set)")
+    st.pyplot(fig)
+
+    toggleconfmatrixes = st.toggle("Show code for confusion matrix")
+    if toggleconfmatrixes:
+        st.code('''from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+        import matplotlib.pyplot as plt
+
+        #using the Random Forest model
+        y_pred = final_model.predict(X_test_scaled)
+
+        # Confusion matrix
+        cm = confusion_matrix(y_test, y_pred)
+
+        disp = ConfusionMatrixDisplay(
+            confusion_matrix=cm,
+            display_labels=["No CVD", "CVD"]
+        )
+
+        fig, ax = plt.subplots(figsize=(5, 4))
+        disp.plot(ax=ax, cmap="Blues")
+        ax.set_title("Confusion Matrix – Random Forest (Test Set)")
+        st.pyplot(fig)
+
+        #normalized
+        from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+        import matplotlib.pyplot as plt
+
+        y_pred = final_model.predict(X_test_scaled)
+
+        cm = confusion_matrix(
+            y_test,
+            y_pred,
+            normalize="true"
+        )
+
+        disp = ConfusionMatrixDisplay(
+            confusion_matrix=cm,
+            display_labels=["No CVD", "CVD"]
+        )
+
+        ax.set_title("Normalized Confusion Matrix – Random Forest (Test Set)")
+        st.pyplot(fig)''')
+
+        st.write("The confusion matrix created with random forest modelling used on the test set, gives valuable insight into how the model detects CVD. As seen by the high number of true negatives (96%), the model is doing a good job at identifying people without CVD. This can be accounted for the inbalanced data set, where due to the class imbalance, the model does a better job at identifying those without CVD. Thus the model struggles to identify those with CVD, as seen by the low true positive values (TP=41) and the relatively high false negatives (FN=109). The low true positive number suggests the model does not often correctly predict CVD, and often predicts that the person has no CVD, but in reality the person has CVD. Overall, the accuracy looks relatively high, however the very poor recall value accounted for the large amount of false negatives, this means that patient with CVD are being missed. This is potentially life threatening and the risk of this should be minimised. In general, the model is very conservative in making the prediction that someone has CVD.")
 
 
 
