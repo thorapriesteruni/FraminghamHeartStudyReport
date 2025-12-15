@@ -898,7 +898,7 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
     X = cvd_clean_imputed[featuresX]  # your dataset
     y = cvd_clean_imputed["CVD"]
 
-    # Train/test split (50/50)
+    # Train/test split 
     from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, stratify=y, random_state=1)
@@ -1083,10 +1083,7 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
     ax.set_title("Confusion Matrix – Random Forest (Test Set)")
     st.pyplot(fig)
 
-    st.write('''The confusion matrix provides insight into how the model classifies individuals with and without cardiovascular disease (CVD). At the default decision threshold of 0.5, the model correctly classified the majority of non-VD cases, indicating high specificity. However, a substantial number of true CVD cases were misclassified as non-CVD, reflected by a high number of false negatives. This explains the relatively high accuracy but low recall and F1 score observed at the default threshold, demonstrating that the model is conservative in predicting positive CVD outcomes.
-
-When the decision threshold was adjusted to the F1-optimal value (approximately 0.26), the confusion matrix shows a clear reduction in false negatives and an increase in true positive CVD classifications. This improvement indicates higher sensitivity to CVD cases, although it occurs at the cost of an increased number of false positives and a reduction in overall accuracy. In a clinical risk-prediction context, this trade-off is considered acceptable, as failing to identify individuals at risk of cardiovascular disease may have more serious consequences than generating additional false alarms. Overall, the confusion matrix analysis highlights the impact of threshold selection on model performance and reinforces the importance of balancing sensitivity and specificity in imbalanced medical datasets.
-''')
+    st.write("The confusion matrix created with random forest modelling used on the test set, gives valuable insight into how the model detects CVD. As seen by the high number of true negatives, the model is doing a good job at identifying people without CVD. This can be accounted for the inbalanced data set, where due to the class imbalance, the model does a better job at identifying those without CVD. Thus the model struggles to identify those with CVD, as seen by the low true positive values (TP=41) and the relatively high false negatives (FN=109). The low true positive number suggests the model does not often correctly predict CVD, and often predicts that the person has no CVD, but in reality the person has CVD. Overall, the accuracy looks relatively high, however the very poor recall value accounted for the large amount of false negatives, this means that patient with CVD are being missed. This is potentially life threatening and the risk of this should be minimised. In general, the model is very conservative in making the prediction that someone has CVD.")
 
 
 
@@ -1193,6 +1190,106 @@ with st.expander("Hyperparameter Tuning for Two Models"):
                     f"Acc={acc:.4f}, Prec={prec:.4f}, Rec={rec:.4f}, F1={f1:.4f}"
                 )
 
+    togglehyperparameter=st.toggle('Show code for Hyperparameter Tuning')
+    if togglehyperparameter:
+        st.code('''st.subheader('Hyperparameter Tuning for Two Models: Logistic Regression + Random Forest')
+    # ==========================================================
+    # HYPERPARAMETER TUNING FOR BEST TWO MODELS
+    # Logistic Regression + Random Forest
+    # (Using IMPUTED data + CV on TRAIN ONLY)
+    # ==========================================================
+
+    import numpy as np
+    from sklearn.model_selection import KFold
+    from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.ensemble import RandomForestClassifier
+
+    # ----------------------------------------------------------
+    # Use TRAINING data only (already imputed earlier)
+    X_tune = X_train.copy()
+    y_tune = y_train.copy()
+
+    kf = KFold(n_splits=5, shuffle=True, random_state=1)
+
+    # ----------------------------------------------------------
+    # Evaluation function (same structure as before)
+
+    def evaluate_model_metrics(model, X, y, kf):
+        accs, precs, recs, f1s = [], [], [], []
+
+        for train_idx, val_idx in kf.split(X):
+            train_X, val_X = X.iloc[train_idx].copy(), X.iloc[val_idx].copy()
+            train_y, val_y = y.iloc[train_idx], y.iloc[val_idx]
+
+            # Median imputation (TRAIN ONLY)
+            med = train_X.median()
+            train_X = train_X.fillna(med)
+            val_X = val_X.fillna(med)
+
+            # Fit + predict
+            model.fit(train_X, train_y)
+            preds = model.predict(val_X)
+
+            accs.append(accuracy_score(val_y, preds))
+            precs.append(precision_score(val_y, preds, zero_division=0))
+            recs.append(recall_score(val_y, preds, zero_division=0))
+            f1s.append(f1_score(val_y, preds, zero_division=0))
+
+        return np.mean(accs), np.mean(precs), np.mean(recs), np.mean(f1s)
+
+    # ----------------------------------------------------------
+    # 1️⃣ LOGISTIC REGRESSION TUNING
+
+    logreg_params = {
+        "solver": ["liblinear", "saga"],
+        "C": [0.1, 0.5, 1.0, 2.0]
+    }
+
+    logreg_results = []
+
+    for solver in logreg_params["solver"]:
+        for C in logreg_params["C"]:
+            model = LogisticRegression(
+                max_iter=2000,
+                class_weight="balanced",
+                solver=solver,
+                C=C
+            )
+            acc, prec, rec, f1 = evaluate_model_metrics(model, X_tune, y_tune, kf)
+            logreg_results.append((solver, C, acc, prec, rec, f1))
+            print(
+                f"LR solver={solver}, C={C} → "
+                f"Acc={acc:.4f}, Prec={prec:.4f}, Rec={rec:.4f}, F1={f1:.4f}"
+            )
+
+    # ----------------------------------------------------------
+    # 2️⃣ RANDOM FOREST TUNING
+
+    rf_params = {
+        "n_estimators": [100, 200, 300],
+        "max_depth": [None, 5, 10, 20],
+        "min_samples_split": [2, 5]
+    }
+
+    rf_results = []
+
+    for n in rf_params["n_estimators"]:
+        for d in rf_params["max_depth"]:
+            for split in rf_params["min_samples_split"]:
+                model = RandomForestClassifier(
+                    n_estimators=n,
+                    max_depth=d,
+                    min_samples_split=split,
+                    class_weight="balanced",
+                    random_state=1
+                )
+                acc, prec, rec, f1 = evaluate_model_metrics(model, X_tune, y_tune, kf)
+                rf_results.append((n, d, split, acc, prec, rec, f1))
+                print(
+                    f"RF n={n}, depth={d}, split={split} → "
+                    f"Acc={acc:.4f}, Prec={prec:.4f}, Rec={rec:.4f}, F1={f1:.4f}"
+                )''')
     st.write('''Model Comparison and Justification of the Selected Model
 
 To evaluate the predictive performance of several machine-learning models for cardiovascular disease (CVD), we compared Logistic Regression, Decision Trees, K-Nearest Neighbors (KNN), Random Forests, and Naive Bayes using 5-fold cross-validation. Performance was assessed using accuracy, precision, recall, and F1 score. Because the dataset is imbalanced, with approximately 23% positive CVD cases, accuracy alone is insufficient to assess model performance. Models optimised for accuracy may achieve high scores by favouring the majority class while failing to detect true CVD events.
@@ -1334,8 +1431,13 @@ with st.expander("Bonus"):
     st.write('''**Threshold Optimisation and F1 score**
 
 We used the F1 score as one of the primary evaluation metrics because our dataset is imbalanced, with far fewer participants experiencing a cardiovascular event than those who remained event-free. In such settings, accuracy alone can be misleading, as high accuracy may be achieved by favouring the majority class. The F1 score provides a balanced assessment of model performance by combining precision and recall, making it more informative for evaluating the detection of relatively rare CVD events.
-The models output continuous probabilities representing an individual's estimated risk ofCVD, which were converted into binary class predictions using a decision threshold. Model performance was therefore evaluated across a range of decision thresholds. Lowering the threshold increased recall by identifying more true CVD cases, while higher thresholds increased precision at the expense of missed cases. The F1 score reached its maximum at a threshold of approximately 0.26, indicating the best balance between false positives and false negatives for this dataset. At the default threshold of 0.5, the model achieved relatively high accuracy but a substantially lower F1 score, reflecting reduced sensitivity to CVD cases. Adjusting the threshold to the F1-optimal value improved the model's ability to detect CVD events, albeit with a decrease in overall accuracy.
+The models output continuous probabilities representing an individual's estimated risk ofCVD, which were converted into binary class predictions using a decision threshold. Model performance was therefore evaluated across a range of decision thresholds. Lowering the threshold increased recall by identifying more true CVD cases, while higher thresholds increased precision at the expense of missed cases. The F1 score reached its maximum at a threshold of approximately 0.26, (we will reference this later) indicating the best balance between false positives and false negatives for this dataset. At the default threshold of 0.5, the model achieved relatively high accuracy but a substantially lower F1 score, reflecting reduced sensitivity to CVD cases. Adjusting the threshold to the F1-optimal value improved the model's ability to detect CVD events, albeit with a decrease in overall accuracy.
 Although the resulting F1 scores remained relatively low, they were intentionally retained as they reflect the true predictive limitations of the model rather than artificially inflated performance. Increasing the F1 score by forcing extreme thresholds would result in clinically unrealistic behaviour, such as classifying nearly all individuals as high risk in order to maximise recall. While this might improve the F1 score numerically, it would substantially reduce the practical usefulness and reliability of the model. By reporting the observed F1 scores and their associated trade-offs transparently, the evaluation provides a realistic and honest assessment of how well total cholesterol measured in Period 3 contributes to predicting cardiovascular disease risk, given the complexity of CVD and the limited number of available predictors.
+    ''')
+
+    st.write('''The confusion matrix provides insight into how the model classifies individuals with and without cardiovascular disease (CVD). At the default decision threshold of 0.5, the model correctly classified the majority of non-VD cases, indicating high specificity. However, a substantial number of true CVD cases were misclassified as non-CVD, reflected by a high number of false negatives. This explains the relatively high accuracy but low recall and F1 score observed at the default threshold, demonstrating that the model is conservative in predicting positive CVD outcomes.
+
+When the decision threshold was adjusted to the F1-optimal value (approximately 0.26), the confusion matrix shows a clear reduction in false negatives and an increase in true positive CVD classifications. This improvement indicates higher sensitivity to CVD cases, although it occurs at the cost of an increased number of false positives and a reduction in overall accuracy. In a clinical risk-prediction context, this trade-off is considered acceptable, as failing to identify individuals at risk of cardiovascular disease may have more serious consequences than generating additional false alarms. Overall, the confusion matrix analysis highlights the impact of threshold selection on model performance and reinforces the importance of balancing sensitivity and specificity in imbalanced medical datasets.
     ''')
 
 with st.expander("Conclusion"):
