@@ -633,7 +633,6 @@ with st.expander("Data Analysis"):
     st.write("Distribution of selected variable with imputed Data")
     variable = st.selectbox("Select variable", ["Age", "Total Cholesterol", "HDL Cholesterol", "LDL Cholesterol","BMI"],key='imputed_histogram')
 
-    # Map display name to dataframe column
     options = {
         "Age": "AGE",
         "Total Cholesterol": "TOTCHOL",
@@ -643,7 +642,7 @@ with st.expander("Data Analysis"):
     col = options[variable]
     data = cvd_clean_imputed[col].dropna()
 
-        # Plot histogram
+    #histogram
     fig10, ax = plt.subplots(figsize=(12, 4))
     ax.hist(data, bins=20, edgecolor="black")
     ax.set_title(f"Distribution of {variable} with imputed data")
@@ -656,7 +655,6 @@ with st.expander("Data Analysis"):
     #interactive box plot after imputation
     variable = st.selectbox("Select variables", ["Age", "Total Cholesterol", "HDL Cholesterol", "LDL Cholesterol","BMI"], key='imputed_boxplot')
 
-    # Map display name to dataframe column
     options1 = {
         "Age": "AGE",
         "Total Cholesterol": "TOTCHOL",
@@ -674,6 +672,7 @@ with st.expander("Data Analysis"):
 
     st.pyplot(fig11)
 
+    #age filter histogram
     st.subheader("Interactive Age Filtered Histogram using Imputed Data")
 
     age_min = int(cvd_clean_imputed["AGE"].min())
@@ -830,7 +829,7 @@ y = cvd_clean_imputed["CVD"]
     )
     st.code('X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=1)')
 
-    # 5-fold CV on training data only
+    # Kfold splitting
     kf = KFold(n_splits=5, shuffle=True, random_state=1)
     st.write("Step 3: 5-fold cross-validation on the training data")
     st.code("kf = KFold(n_splits=5, shuffle=True, random_state=1)")
@@ -844,17 +843,15 @@ y = cvd_clean_imputed["CVD"]
             train_X, val_X = X.iloc[train_index].copy(), X.iloc[val_index].copy()
             train_y, val_y = y.iloc[train_index], y.iloc[val_index]
 
-            # Median imputation (TRAIN ONLY)
             medians = train_X.median()
             train_X = train_X.fillna(medians)
             val_X = val_X.fillna(medians)
 
-            # Scaling (already introduced elsewhere in notebook)
             scaler = StandardScaler()
             train_X = scaler.fit_transform(train_X)
             val_X = scaler.transform(val_X)
 
-            # Fit + predict
+            
             model.fit(train_X, train_y)
             preds = model.predict(val_X)
 
@@ -862,11 +859,9 @@ y = cvd_clean_imputed["CVD"]
 
         return accuracies
 
-    # Define models
     logreg = LogisticRegression(max_iter=1000, class_weight="balanced")
     decision_tree = tree.DecisionTreeClassifier(random_state=1, class_weight="balanced")
 
-    # Evaluate models
     logreg_acc = evaluate_model(logreg, X_train, y_train, kf)
     tree_acc   = evaluate_model(decision_tree, X_train, y_train, kf)
 
@@ -889,8 +884,6 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.naive_bayes import GaussianNB
 
-    # ----------------------------------------------------------
-    # Example: Define candidate features & target (replace with your dataset)
     featuresX = ['SEX','AGE','TOTCHOL','HDLC','LDLC',
                  "BMI", "PREVCHD", "PREVMI",
                  'NONHDL','LDL_to_HDL','TOTCHOL_to_HDL','AGE_65plus']
@@ -909,7 +902,6 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
     from sklearn.preprocessing import StandardScaler
     from sklearn.metrics import accuracy_score
 
-    # Evaluation function
     def evaluate_model(model, X, y, skf):
         accuracies = []
 
@@ -934,7 +926,6 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
 
         return accuracies
     
-    # Candidate models for selection
 
     models = {
         "Logistic Regression": LogisticRegression(max_iter=1000, class_weight="balanced"),
@@ -945,10 +936,6 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
         ),
         "Naive Bayes": GaussianNB()
     }
-
-    # ----------------------------------------------------------
-    # Evaluate models (IMPORTANT: training set only)
-
     results = {}
 
     for name, model in models.items():
@@ -956,9 +943,6 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
         results[name] = accs
         st.write(f"\n{name} accuracies per fold: {accs}")
         st.write(f"{name} mean accuracy: {np.mean(accs):.4f}")
-
-    # ----------------------------------------------------------
-    # Summary comparison
 
     st.write("**Model Comparison:**")
     for name, accs in results.items():
@@ -969,12 +953,12 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
 
 
 
-    #    # Visualization of Model Comparison
-    # Convert results into usable lists
+    # Model Comparison Visuals
+    
     model_names = list(results.keys())
     mean_acc = [np.mean(results[m]) for m in model_names]
-# -----------------------------------------------
-    # BAR PLOT: 
+ 
+    # BAR PLOT
     fig12, ax = plt.subplots(figsize=(10,4))
     ax.bar(model_names, mean_acc)
     ax.set_ylabel("Mean Accuracy")
@@ -982,8 +966,7 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
     st.pyplot(fig12)
 
 
-    # -----------------------------------------------
-    # BOXPLOT: 
+    # BOXPLOT 
     fig13, ax = plt.subplots(figsize=(10,5))
     ax.boxplot([results[m] for m in model_names],tick_labels=model_names)
     ax.set_title("Cross-Validation Accuracy Distribution")
@@ -1010,21 +993,13 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
     from sklearn.ensemble import RandomForestClassifier
     import pandas as pd
 
-    # ----------------------------------------------------------
-    # FINAL MODEL: Random Forest (selected from Block 2)
-    # ----------------------------------------------------------
-
+  #Random forest was the best model
     final_model = RandomForestClassifier(
         n_estimators=100,
         random_state=1,
         class_weight="balanced"
     )
 
-    # ----------------------------------------------------------
-    # Prepare train and test sets (imputed + engineered)
-    # ----------------------------------------------------------
-
-    # Median imputation (fit on TRAIN only)
     medians = X_train.median()
     X_train_imp = X_train.fillna(medians)
     X_test_imp = X_test.fillna(medians)
@@ -1034,21 +1009,9 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
     X_train_scaled = scaler.fit_transform(X_train_imp)
     X_test_scaled = scaler.transform(X_test_imp)
 
-    # ----------------------------------------------------------
-    # Train final model
-    # ----------------------------------------------------------
-
     final_model.fit(X_train_scaled, y_train)
 
-    # ----------------------------------------------------------
-    # Predict on TEST set
-    # ----------------------------------------------------------
-
     y_pred = final_model.predict(X_test_scaled)
-
-    # ----------------------------------------------------------
-    # Compute metrics
-    # ----------------------------------------------------------
 
     final_metrics = {
         "Accuracy": accuracy_score(y_test, y_pred),
@@ -1079,8 +1042,32 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
     )
 
     fig, ax = plt.subplots(figsize=(5, 4))
-    disp.plot(ax=ax, cmap="Blues", values_format="d")
+    disp.plot(ax=ax, cmap="Blues")
     ax.set_title("Confusion Matrix – Random Forest (Test Set)")
+    st.pyplot(fig)
+
+    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+    import matplotlib.pyplot as plt
+
+    y_pred = final_model.predict(X_test_scaled)
+
+    cm = confusion_matrix(
+        y_test,
+        y_pred,
+        normalize="true"
+    )
+
+    disp = ConfusionMatrixDisplay(
+        confusion_matrix=cm,
+        display_labels=["No CVD", "CVD"]
+    )
+
+    fig, ax = plt.subplots(figsize=(5, 4))
+    disp.plot(ax=ax, cmap="Blues")
+    ax.set_title("Confusion Matrix – Random Forest (Test Set)")
+    st.pyplot(fig)
+
+    ax.set_title("Normalized Confusion Matrix – Random Forest (Test Set)")
     st.pyplot(fig)
 
     st.write("The confusion matrix created with random forest modelling used on the test set, gives valuable insight into how the model detects CVD. As seen by the high number of true negatives, the model is doing a good job at identifying people without CVD. This can be accounted for the inbalanced data set, where due to the class imbalance, the model does a better job at identifying those without CVD. Thus the model struggles to identify those with CVD, as seen by the low true positive values (TP=41) and the relatively high false negatives (FN=109). The low true positive number suggests the model does not often correctly predict CVD, and often predicts that the person has no CVD, but in reality the person has CVD. Overall, the accuracy looks relatively high, however the very poor recall value accounted for the large amount of false negatives, this means that patient with CVD are being missed. This is potentially life threatening and the risk of this should be minimised. In general, the model is very conservative in making the prediction that someone has CVD.")
@@ -1092,26 +1079,20 @@ with st.expander("Model evaluation using StratifiedKFold Cross-Validation"):
 
 with st.expander("Hyperparameter Tuning for Two Models"):
     st.subheader('Hyperparameter Tuning for Two Models: Logistic Regression + Random Forest')
-    # ==========================================================
-    # HYPERPARAMETER TUNING FOR BEST TWO MODELS
-    # Logistic Regression + Random Forest
-    # (Using IMPUTED data + CV on TRAIN ONLY)
-    # ==========================================================
-
     import numpy as np
     from sklearn.model_selection import KFold
     from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
     from sklearn.linear_model import LogisticRegression
     from sklearn.ensemble import RandomForestClassifier
 
-    # ----------------------------------------------------------
+    
     # Use TRAINING data only (already imputed earlier)
     X_tune = X_train.copy()
     y_tune = y_train.copy()
 
     kf = KFold(n_splits=5, shuffle=True, random_state=1)
 
-    # ----------------------------------------------------------
+    
     # Evaluation function (same structure as before)
 
     def evaluate_model_metrics(model, X, y, kf):
@@ -1137,8 +1118,7 @@ with st.expander("Hyperparameter Tuning for Two Models"):
 
         return np.mean(accs), np.mean(precs), np.mean(recs), np.mean(f1s)
 
-    # ----------------------------------------------------------
-    # 1️⃣ LOGISTIC REGRESSION TUNING
+    #Logistic regressiopn tuning
 
     logreg_params = {
         "solver": ["liblinear", "saga"],
@@ -1157,13 +1137,12 @@ with st.expander("Hyperparameter Tuning for Two Models"):
             )
             acc, prec, rec, f1 = evaluate_model_metrics(model, X_tune, y_tune, kf)
             logreg_results.append((solver, C, acc, prec, rec, f1))
-            print(
+            st.write(
                 f"LR solver={solver}, C={C} → "
                 f"Acc={acc:.4f}, Prec={prec:.4f}, Rec={rec:.4f}, F1={f1:.4f}"
             )
 
-    # ----------------------------------------------------------
-    # 2️⃣ RANDOM FOREST TUNING
+    #Random forest tuning
 
     rf_params = {
         "n_estimators": [100, 200, 300],
@@ -1185,7 +1164,7 @@ with st.expander("Hyperparameter Tuning for Two Models"):
                 )
                 acc, prec, rec, f1 = evaluate_model_metrics(model, X_tune, y_tune, kf)
                 rf_results.append((n, d, split, acc, prec, rec, f1))
-                print(
+                st.write(
                     f"RF n={n}, depth={d}, split={split} → "
                     f"Acc={acc:.4f}, Prec={prec:.4f}, Rec={rec:.4f}, F1={f1:.4f}"
                 )
@@ -1193,27 +1172,17 @@ with st.expander("Hyperparameter Tuning for Two Models"):
     togglehyperparameter=st.toggle('Show code for Hyperparameter Tuning')
     if togglehyperparameter:
         st.code('''st.subheader('Hyperparameter Tuning for Two Models: Logistic Regression + Random Forest')
-    # ==========================================================
-    # HYPERPARAMETER TUNING FOR BEST TWO MODELS
-    # Logistic Regression + Random Forest
-    # (Using IMPUTED data + CV on TRAIN ONLY)
-    # ==========================================================
-
+    
     import numpy as np
     from sklearn.model_selection import KFold
     from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
     from sklearn.linear_model import LogisticRegression
     from sklearn.ensemble import RandomForestClassifier
 
-    # ----------------------------------------------------------
-    # Use TRAINING data only (already imputed earlier)
     X_tune = X_train.copy()
     y_tune = y_train.copy()
 
     kf = KFold(n_splits=5, shuffle=True, random_state=1)
-
-    # ----------------------------------------------------------
-    # Evaluation function (same structure as before)
 
     def evaluate_model_metrics(model, X, y, kf):
         accs, precs, recs, f1s = [], [], [], []
@@ -1222,12 +1191,10 @@ with st.expander("Hyperparameter Tuning for Two Models"):
             train_X, val_X = X.iloc[train_idx].copy(), X.iloc[val_idx].copy()
             train_y, val_y = y.iloc[train_idx], y.iloc[val_idx]
 
-            # Median imputation (TRAIN ONLY)
             med = train_X.median()
             train_X = train_X.fillna(med)
             val_X = val_X.fillna(med)
 
-            # Fit + predict
             model.fit(train_X, train_y)
             preds = model.predict(val_X)
 
@@ -1238,8 +1205,7 @@ with st.expander("Hyperparameter Tuning for Two Models"):
 
         return np.mean(accs), np.mean(precs), np.mean(recs), np.mean(f1s)
 
-    # ----------------------------------------------------------
-    # 1️⃣ LOGISTIC REGRESSION TUNING
+   #Logistic Regression Tuning
 
     logreg_params = {
         "solver": ["liblinear", "saga"],
@@ -1258,13 +1224,12 @@ with st.expander("Hyperparameter Tuning for Two Models"):
             )
             acc, prec, rec, f1 = evaluate_model_metrics(model, X_tune, y_tune, kf)
             logreg_results.append((solver, C, acc, prec, rec, f1))
-            print(
+            st.write(
                 f"LR solver={solver}, C={C} → "
                 f"Acc={acc:.4f}, Prec={prec:.4f}, Rec={rec:.4f}, F1={f1:.4f}"
             )
 
-    # ----------------------------------------------------------
-    # 2️⃣ RANDOM FOREST TUNING
+    #Random Forest Tuning
 
     rf_params = {
         "n_estimators": [100, 200, 300],
@@ -1286,7 +1251,7 @@ with st.expander("Hyperparameter Tuning for Two Models"):
                 )
                 acc, prec, rec, f1 = evaluate_model_metrics(model, X_tune, y_tune, kf)
                 rf_results.append((n, d, split, acc, prec, rec, f1))
-                print(
+                st.write(
                     f"RF n={n}, depth={d}, split={split} → "
                     f"Acc={acc:.4f}, Prec={prec:.4f}, Rec={rec:.4f}, F1={f1:.4f}"
                 )''')
@@ -1312,17 +1277,10 @@ with st.expander("Bonus"):
         accuracy_score, confusion_matrix, ConfusionMatrixDisplay
     )
 
-    # ==========================================================
-    # 1. Get predicted probabilities from the TRAINED final model
-    # ==========================================================
-
     # Probability of CVD = 1
     y_prob = final_model.predict_proba(X_test_scaled)[:, 1]
 
-    # ==========================================================
-    # 2. Evaluate metrics across thresholds
-    # ==========================================================
-
+    #compare different thresholds
     thresholds = np.linspace(0.05, 0.95, 100)
 
     precision_scores = []
@@ -1342,9 +1300,7 @@ with st.expander("Bonus"):
             f1_score(y_test, y_pred_t, zero_division=0)
         )
 
-    # ==========================================================
-    # 3. Plot Precision, Recall, and F1 vs threshold
-    # ==========================================================
+    #precision, recall, f1 score
 
     fig15, ax = plt.subplots(figsize=(7, 4))
 
@@ -1360,10 +1316,7 @@ with st.expander("Bonus"):
 
     st.pyplot(fig15)
 
-    # ==========================================================
-    # 4. Find optimal threshold (max F1)
-    # ==========================================================
-
+    #optimal threshold?
     best_idx = np.argmax(f1_scores)
     best_threshold = thresholds[best_idx]
     best_f1 = f1_scores[best_idx]
@@ -1371,9 +1324,7 @@ with st.expander("Bonus"):
     st.write(f"Optimal threshold (max F1): {best_threshold:.2f}")
     st.write(f"Best F1 score: {best_f1:.3f}")
 
-    # ==========================================================
-    # 5. Metrics at DEFAULT threshold (0.5)
-    # ==========================================================
+    #Default 0.5
 
     y_pred_default = (y_prob >= 0.5).astype(int)
 
@@ -1399,17 +1350,12 @@ with st.expander("Bonus"):
     ax.set_title("Confusion Matrix – Default Threshold (0.5)")
     st.pyplot(fig17)
 
-    # ==========================================================
-    # 6. Metrics at OPTIMAL F1 threshold
-    # ==========================================================
+    #optimal f1 threshold
 
     y_pred_opt = (y_prob >= best_threshold).astype(int)
 
     acc_opt = accuracy_score(y_test, y_pred_opt)
     f1_opt = f1_score(y_test, y_pred_opt, zero_division=0)
-
-
-
 
     st.write("\nOptimal F1 threshold:")
     st.write(f"Threshold: {best_threshold:.2f}")
